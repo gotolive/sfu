@@ -1,0 +1,70 @@
+package h264
+
+type SequenceParameterSet struct {
+	ProfileIdc                      uint8
+	ConstraintSet0Flag              bool
+	ConstraintSet1Flag              bool
+	ConstraintSet2Flag              bool
+	ConstraintSet3Flag              bool
+	ConstraintSet4Flag              bool
+	ConstraintSet5Flag              bool
+	LevelIdc                        uint8
+	SeqParameterSetId               uint8
+	ChromaFormatIdc                 uint8
+	BitDepthLumaMinus8              uint8
+	BitDepthChromaMinus8            uint8
+	QpprimeYZeroTransformBypassFlag bool
+	SeqScalingMatrixPresentFlag     bool
+	SeqScalingListPresentFlag       [8]bool
+	Log2MaxFrameNumMinus4           uint8
+	PicOrderCntType                 uint8
+	Log2MaxPicOrderCntLsbMinus4     uint8
+	DeltaPicOrderAlwaysZeroFlag     bool
+	OffsetForNonRefPic              uint
+	OffsetForTopToBottomField       int
+	NumRefFramesInPicOrderCntCycle  uint
+	OffsetForRefFrame               [256]int
+	MaxNumRefFrames                 uint
+	GapsInFrameNumValueAllowedFlag  bool
+	PicWidthInMbsMinus1             uint
+	PicHeightInMapUnitsMinus1       uint
+	FramingMbsOnlyFlag              bool
+	MbAdaptiveFrameFieldFlag        bool
+	Direct8X8InferenceFlag          bool
+	FrameCroppingFlag               bool
+	FrameCropLeftOffset             uint
+	FrameCropRightOffset            uint
+	FrameCropTopOffset              uint
+	FrameCropBottomOffset           uint
+	VuiParametersPresentFlag        bool
+}
+
+type PictureParameterSet struct {
+	PicParameterSetId                     uint
+	SeqParameterSetId                     uint
+	EntropyCodingModeFlag                 bool
+	BottomFieldPicOrderInFramePresentFlag bool
+	NumSliceGroupsMinus1                  uint
+	SliceGroupMapType                     uint
+	RunLengthMinus1                       []uint
+	TopLeft                               []uint
+	BottomRight                           []uint
+	SliceGroupChangeDirectionFlag         bool
+	SliceGroupChangeRateMinus1            uint
+	PicSizeInMapUnitsMinus1               uint
+	SliceGroupId                          []uint
+	NumRefIdxL0DefaultActiveMinus1        uint
+	NumRefIdxL1DefaultActiveMinus1        uint
+	WeightedPredFlag                      bool
+	WeightedBipredIdc                     uint
+	PicInitQpMinus26                      int
+	PicInitQsMinus26                      int
+	ChromaQpIndexOffset                   int
+	DeblockingFilterControlPresentFlag    bool
+	ConstainedIntraPredFlag               bool
+	RedundantPicCntPresentFlag            bool
+	Transform8X8ModeFlag                  bool
+	PicScalingMatrixPresentFlag           bool
+	PicScalingListPresentFlag             [8]bool
+	SecondChromaQpIndexOffset             int
+}

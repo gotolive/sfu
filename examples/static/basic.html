@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <base target="_blank">
+    <title>Basic Demo</title>
+    <link rel="stylesheet" href="main.css"/>
+
+</head>
+
+<body>
+<div id="container">
+    <h1>
+        <span>Basic Demo</span>
+    </h1>
+
+
+    <section id="pubOptions">
+        <h2>Publish</h2>
+        <video id="pubVideo" playsinline autoplay muted></video>
+        <canvas id="pubAudio"></canvas>
+        <div id="pubVideoInfo" class="output"></div>
+        <div id="pubAttribute">
+            <div>
+                <label for="pubSimulcast">Simulcast:</label>
+                <select id="pubSimulcast">
+                    <option value="none">none</option>
+                    <option value="rid-based">rid-based</option>
+                </select>
+            </div>
+            <div>
+                <label for="pubSpatialLayers">Spatial Layers:</label>
+                <select id="pubSpatialLayers" disabled>
+                    <option value="3">3</option>
+                </select>
+            </div>
+            <div>
+                <label for="pubScaleResolutionDownBy">ScaleResolutionDownBy:</label>
+                <select id="pubScaleResolutionDownBy" disabled>
+                    <option value="2.0">2.0</option>
+                </select>
+            </div>
+            <div>
+                <label for="pubResolutionMaintain">Resolution Maintain:</label>
+                <input id="pubResolutionMaintain" type="checkbox" checked disabled></input>
+
+            </div>
+            <div>
+                <button id="pubpcTracks">Publish</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="subOptions">
+        <h2>Play</h2>
+        <video id="subVideo" playsinline autoplay muted></video>
+        <video id="subAudioStub" playsinline autoplay muted></video>
+        <canvas id="subAudio"></canvas>
+        <div id="subVideoInfo" class="output"></div>
+        <div id="subAttribute">
+            <div>
+                <label for="subProfile">Profile:</label>
+                <select id="subProfile">
+                    <option value="">none</option>
+                    <option value="high">high</option>
+                    <option value="medium">medium</option>
+                    <option value="low">low</option>
+                </select>
+            </div>
+        </div>
+        <div>
+            <button id="subpcTracks">Play</button>
+            <button id="subChangeLayer">Change Layer</button>
+        </div>
+    </section>
+
+
+    <a href="https://github.com/gotolive/sfu/tree/main/examples"
+       title="View source for this page on GitHub" id="viewSource">View source on GitHub</a>
+
+</div>
+<script src='js/streamvisualizer.js'></script>
+<script src='main.js'></script>
+
+</body>
+
+</html>

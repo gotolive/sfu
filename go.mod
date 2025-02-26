@@ -3,6 +3,7 @@ module github.com/gotolive/sfu
 go 1.23
 
 require (
+	github.com/gorilla/websocket v1.5.3
 	github.com/pion/dtls/v2 v2.2.12
 	github.com/pion/logging v0.2.2
 	github.com/pion/rtcp v1.2.10

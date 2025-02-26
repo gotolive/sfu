@@ -4,6 +4,10 @@ import (
 	"strconv"
 )
 
+type SDP struct {
+	Type string
+	SDP  string
+}
 type HeaderExtension struct {
 	URI     string
 	ID      uint8

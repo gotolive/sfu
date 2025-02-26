@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gotolive/sfu/examples/conference"
 	"github.com/gotolive/sfu/rtc"
 	"github.com/gotolive/sfu/rtc/bwe"
-	"github.com/gotolive/sfu/rtc/bwe/remb"
 	"github.com/gotolive/sfu/rtc/dtls"
 	"github.com/gotolive/sfu/rtc/ice"
 	"github.com/gotolive/sfu/rtc/logger"
@@ -286,25 +286,26 @@ func main() {
 		})
 	}
 	{
-		go func() {
-			ticker := time.NewTicker(time.Second)
-			for range ticker.C {
-				var sendbit, receivebit, recceiveByte, sendByte int64
-				connections := broker.Connections()
-				now := time.Now().UnixMilli()
-				for _, c := range connections {
-					stats := c.Stats()
-					sendbit += stats.SentBPS(now)
-					sendByte += stats.BytesSend()
-					recceiveByte += stats.BytesReceived()
-					receivebit += stats.ReceiveBPS(now)
-				}
-				logger.Infof("Total Connection %d, ReceiveBPS: %v, SendBPS: %v, TotalReceiveByte: %d, TotalSendByte: %d", len(connections), remb.Bitrate(receivebit), remb.Bitrate(sendbit), recceiveByte, sendByte)
-			}
-		}()
+		//go func() {
+		//	ticker := time.NewTicker(time.Second)
+		//	for range ticker.C {
+		//		var sendbit, receivebit, recceiveByte, sendByte int64
+		//		connections := broker.Connections()
+		//		now := time.Now().UnixMilli()
+		//		for _, c := range connections {
+		//			stats := c.Stats()
+		//			sendbit += stats.SentBPS(now)
+		//			sendByte += stats.BytesSend()
+		//			recceiveByte += stats.BytesReceived()
+		//			receivebit += stats.ReceiveBPS(now)
+		//		}
+		//		logger.Infof("Total Connection %d, ReceiveBPS: %v, SendBPS: %v, TotalReceiveByte: %d, TotalSendByte: %d", len(connections), remb.Bitrate(receivebit), remb.Bitrate(sendbit), recceiveByte, sendByte)
+		//	}
+		//}()
 	}
 	http.HandleFunc("/whip", whip)
 	http.HandleFunc("/whep", whep)
+	http.HandleFunc("/ws", conference.WSHandleFunc)
 	http.Handle("/", http.FileServer(http.Dir("./examples/static")))
 	if err := http.ListenAndServe(listenAddress, nil); err != nil {
 		log.Fatal("Listen HTTP fail:", err)

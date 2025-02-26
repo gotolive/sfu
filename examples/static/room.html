@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Conference</title>
+</head>
+<body>
+<h1>Video Conference</h1>
+<div>
+    <input type="text" id="roomCode" placeholder="Enter Room Code">
+    <input type="text" id="clientId" placeholder="Enter Client ID">
+    <button id="joinButton">Join Room</button>
+</div>
+<div id="videos"></div>
+
+<script>
+    let localStream;
+    let peerConnections = {};
+    const roomCodeInput = document.getElementById('roomCode');
+    const clientIdInput = document.getElementById('clientId');
+    const joinButton = document.getElementById('joinButton');
+    const videosDiv = document.getElementById('videos');
+    let publishPeerConnection = new RTCPeerConnection({
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require',
+        iceTransportPolicy: 'all',
+    })
+
+    async function publish(ws) {
+        try {
+            let stream = await navigator.mediaDevices.getUserMedia({audio: true, video: true});
+            publishPeerConnection.addTransceiver(stream.getAudioTracks()[0], {direction: 'sendonly'});
+            let videoEncodings = [];
+            publishPeerConnection.addTransceiver(stream.getVideoTracks()[0], {
+                direction: 'sendonly',
+                active: true,
+                sendEncodings: videoEncodings
+            });
+            let offer = await publishPeerConnection.createOffer();
+            await publishPeerConnection.setLocalDescription(offer);
+            ws.send(JSON.stringify({type: 'publish', data: offer}));
+        } catch (e) {
+            console.log(`publish error: ${e}`);
+        }
+    }
+
+    async function handlePublishResponse(answer) {
+        await publishPeerConnection.setRemoteDescription(answer)
+    }
+
+    async function handlePublish(clientID, offer) {
+        let peerConnection = new RTCPeerConnection();
+        peerConnection.ontrack = (env) => {
+            if (env.track.kind === 'video') {
+                const videoContainer = document.createElement('div');
+                videoContainer.style.position = 'relative';
+                videoContainer.style.display = 'inline-block';
+                videoContainer.style.margin = '10px';
+
+                const label = document.createElement('div');
+                label.textContent = clientID; // Assuming clientId is available in the scope
+                label.style.position = 'absolute';
+                label.style.top = '0';
+                label.style.left = '0';
+                label.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                label.style.color = 'white';
+                label.style.padding = '2px 5px';
+                label.style.fontSize = '12px';
+
+                const localVideo = document.createElement('video');
+                localVideo.srcObject = new MediaStream([env.track]);
+                localVideo.autoplay = true;
+                localVideo.muted = true;
+                localVideo.style.width = '200px'; // Set the desired width
+                localVideo.style.height = '150px'; // Set the desired height
+
+                videoContainer.appendChild(localVideo);
+                videoContainer.appendChild(label);
+                videosDiv.appendChild(videoContainer);
+            }
+        };
+        await peerConnection.setRemoteDescription(offer);
+        peerConnection.createAnswer().then(answer => {
+            peerConnection.setLocalDescription(answer);
+        });
+    }
+
+    joinButton.addEventListener('click', joinRoom);
+
+    async function joinRoom() {
+        const roomCode = roomCodeInput.value;
+        const clientId = clientIdInput.value;
+        if (!roomCode || !clientId) {
+            alert('Please enter both room code and client ID.');
+            return;
+        }
+
+        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+        const localVideo = document.createElement('video');
+        localVideo.srcObject = localStream;
+        localVideo.autoplay = true;
+        localVideo.muted = true;
+        videosDiv.appendChild(localVideo);
+
+        const ws = new WebSocket('ws://localhost:8990/ws?room=' + roomCode + '&client=' + clientId);
+        ws.onopen = () => {
+            ws.send(JSON.stringify({type: 'join', room: roomCode, client: clientId}));
+        };
+
+        ws.onmessage = async (message) => {
+            const data = JSON.parse(message.data);
+            switch (data.type) {
+                case 'join-response':
+                    await publish(ws);
+                    for (let client of data.data) {
+                        if (client !== clientId) {
+                            ws.send(JSON.stringify({type: 'subscribe', data: client}));
+                        }
+                    }
+                    break;
+                case 'publish-response':
+                    await handlePublishResponse(data.data);
+                    break;
+                case 'publish':
+                    ws.send(JSON.stringify({type: 'subscribe', data: data.clientId}));
+                    break;
+                case 'subscribe-response':
+                    await handlePublish(data.data.clientId, data.data);
+                    break;
+            }
+        };
+
+
+    }
+</script>
+</body>
+</html>

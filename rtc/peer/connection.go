@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -56,7 +55,7 @@ func newConnection(id, bwe string, transport Transport, l connectionListener) *C
 		listener:      l,
 		bweType:       bwe,
 		transport:     transport,
-		senders:       map[string]Sender{},
+		senders:       []Sender{},
 		ssrcSenders:   map[uint32]Sender{},
 		rtxSsrcSender: map[uint32]Sender{},
 		rtpTable:      newRTPTable(),
@@ -75,9 +74,10 @@ type Connection struct {
 	rtpTable  *rtpTable          // matching rtp->receiver
 	listener  connectionListener // callback
 	//
-	mutex         sync.Mutex
-	receivers     []*Receiver
-	senders       map[string]Sender
+	mutex     sync.Mutex
+	receivers []*Receiver
+	senders   []Sender
+	//senders       map[string]Sender
 	ssrcSenders   map[uint32]Sender
 	rtxSsrcSender map[uint32]Sender
 	// this will replace the header in producer and connection
@@ -330,7 +330,7 @@ func (c *Connection) NewSender(req *SenderOption) (Sender, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.senders[sender.ID()] = sender
+	c.senders = append(c.senders, sender)
 	stream := sender.Stream()
 	c.ssrcSenders[stream.SSRC] = sender
 	c.rtxSsrcSender[stream.RTX] = sender
@@ -369,10 +369,14 @@ func (c *Connection) Senders() []Sender {
 func (c *Connection) removeSender(id string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	if s, ok := c.senders[id]; ok {
-		delete(c.senders, id)
-		delete(c.ssrcSenders, s.Stream().SSRC)
-		delete(c.rtxSsrcSender, s.Stream().RTX)
+	for i, v := range c.senders {
+		if v.ID() == id {
+			c.senders = append(c.senders[:i], c.senders[i+1:]...)
+			delete(c.ssrcSenders, v.Stream().SSRC)
+			delete(c.rtxSsrcSender, v.Stream().RTX)
+			break
+		}
+
 	}
 }
 
@@ -442,9 +446,7 @@ func (c *Connection) handleRtcpPacket(p rtcp.Packet) {
 
 func (c *Connection) handleRtcpNack(report *rtcp.TransportLayerNack) {
 	consumer := c.getSenderBySSRC(report.MediaSSRC)
-	if consumer == nil && report.MediaSSRC != RTPProbationSsrc {
-		log.Println("err")
-	} else {
+	if consumer != nil && report.MediaSSRC != RTPProbationSsrc {
 		consumer.ReceiveNack(report)
 	}
 }

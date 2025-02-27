@@ -25,7 +25,37 @@
         bundlePolicy: 'max-bundle',
         rtcpMuxPolicy: 'require',
         iceTransportPolicy: 'all',
-    })
+    });
+    let subscribePeerConnection = new RTCPeerConnection();
+    subscribePeerConnection.ontrack = (env) => {
+        if (env.track.kind === 'video') {
+            const videoContainer = document.createElement('div');
+            videoContainer.style.position = 'relative';
+            videoContainer.style.display = 'inline-block';
+            videoContainer.style.margin = '10px';
+
+            const label = document.createElement('div');
+            // label.textContent = clientID; // Assuming clientId is available in the scope
+            label.style.position = 'absolute';
+            label.style.top = '0';
+            label.style.left = '0';
+            label.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            label.style.color = 'white';
+            label.style.padding = '2px 5px';
+            label.style.fontSize = '12px';
+
+            const localVideo = document.createElement('video');
+            localVideo.srcObject = new MediaStream([env.track]);
+            localVideo.autoplay = true;
+            localVideo.muted = true;
+            localVideo.style.width = '200px'; // Set the desired width
+            localVideo.style.height = '150px'; // Set the desired height
+
+            videoContainer.appendChild(localVideo);
+            videoContainer.appendChild(label);
+            videosDiv.appendChild(videoContainer);
+        }
+    };
 
     async function publish(ws) {
         try {
@@ -50,39 +80,9 @@
     }
 
     async function handlePublish(clientID, offer) {
-        let peerConnection = new RTCPeerConnection();
-        peerConnection.ontrack = (env) => {
-            if (env.track.kind === 'video') {
-                const videoContainer = document.createElement('div');
-                videoContainer.style.position = 'relative';
-                videoContainer.style.display = 'inline-block';
-                videoContainer.style.margin = '10px';
-
-                const label = document.createElement('div');
-                label.textContent = clientID; // Assuming clientId is available in the scope
-                label.style.position = 'absolute';
-                label.style.top = '0';
-                label.style.left = '0';
-                label.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                label.style.color = 'white';
-                label.style.padding = '2px 5px';
-                label.style.fontSize = '12px';
-
-                const localVideo = document.createElement('video');
-                localVideo.srcObject = new MediaStream([env.track]);
-                localVideo.autoplay = true;
-                localVideo.muted = true;
-                localVideo.style.width = '200px'; // Set the desired width
-                localVideo.style.height = '150px'; // Set the desired height
-
-                videoContainer.appendChild(localVideo);
-                videoContainer.appendChild(label);
-                videosDiv.appendChild(videoContainer);
-            }
-        };
-        await peerConnection.setRemoteDescription(offer);
-        peerConnection.createAnswer().then(answer => {
-            peerConnection.setLocalDescription(answer);
+        await subscribePeerConnection.setRemoteDescription(offer);
+        subscribePeerConnection.createAnswer().then(answer => {
+            subscribePeerConnection.setLocalDescription(answer);
         });
     }
 
@@ -113,17 +113,13 @@
             switch (data.type) {
                 case 'join-response':
                     await publish(ws);
-                    for (let client of data.data) {
-                        if (client !== clientId) {
-                            ws.send(JSON.stringify({type: 'subscribe', data: client}));
-                        }
-                    }
+                    ws.send(JSON.stringify({type: 'subscribe', data: data.data}));
                     break;
                 case 'publish-response':
                     await handlePublishResponse(data.data);
                     break;
                 case 'publish':
-                    ws.send(JSON.stringify({type: 'subscribe', data: data.clientId}));
+                    ws.send(JSON.stringify({type: 'subscribe', data:  [data.clientId]}));
                     break;
                 case 'subscribe-response':
                     await handlePublish(data.data.clientId, data.data);

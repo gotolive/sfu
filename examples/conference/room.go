@@ -35,11 +35,13 @@ type Room struct {
 }
 
 type Client struct {
-	id         string
-	conn       *websocket.Conn
-	send       chan []byte
-	connection *peer.Connection
-	published  chan bool
+	id                  string
+	conn                *websocket.Conn
+	send                chan []byte
+	publishConnection   *peer.Connection
+	subscribeConnection *peer.Connection
+	published           chan bool
+	mid                 int
 }
 
 type Message struct {
@@ -94,9 +96,11 @@ func (room *Room) handleMessage(message Message) {
 	var response, broadcast *Message
 	switch message.Type {
 	case joinRoom:
-		clients := make([]string, 0, len(room.clients))
+		clients := make([]string, 0, len(room.clients)-1)
 		for client := range room.clients {
-			clients = append(clients, client.id)
+			if client.id != message.ClientID {
+				clients = append(clients, client.id)
+			}
 		}
 		data, _ := json.Marshal(clients)
 		response = &Message{
@@ -117,15 +121,14 @@ func (room *Room) handleMessage(message Message) {
 			Type:     subscribe + "-response",
 			ClientID: message.ClientID,
 		}
-		var cid string
+		var cid []string
 		json.Unmarshal(message.Data, &cid)
-		if cid == "" {
-			log.Println("client id is required")
+		if len(cid) == 0 {
 			return
 		}
 		var client *Client
 		for c := range room.clients {
-			if c.id == cid {
+			if c.id == message.ClientID {
 				client = c
 				break
 			}
@@ -134,34 +137,26 @@ func (room *Room) handleMessage(message Message) {
 			log.Println("client not found", cid)
 			return
 		}
-		t, err := broker.NewWebRTCConnection(&peer.WebRTCOption{
-			DtlsOption: dtls.Option{
-				Role: dtls.Active,
-			},
-			BweType: bwe.Remb,
-		})
-		if err != nil {
-			logger.Error("create connection fail:", err)
-			return
-		}
-		t.OnStateChange(func(state int) {
-			if state == 2 {
-				t.Close()
+		for _, v := range cid {
+			for c := range room.clients {
+				if c.id == v {
+					publisher := c.publishConnection
+					for _, v := range publisher.Receivers() {
+						op := &peer.SenderOption{
+							ID:           v.ID() + peer.RandomString(12),
+							ReceiverID:   v.ID(),
+							ConnectionID: publisher.ID(),
+							MID:          fmt.Sprint(client.mid),
+							SwitchMode:   peer.ManualSwitchLayer,
+						}
+						client.subscribeConnection.NewSender(op)
+						client.mid++
+					}
+				}
 			}
-		})
-		publisher := client.connection
-		for _, v := range publisher.Receivers() {
-			op := &peer.SenderOption{
-				ID:           v.ID() + peer.RandomString(12),
-				ReceiverID:   v.ID(),
-				ConnectionID: publisher.ID(),
-				MID:          v.MID(),
-				SwitchMode:   peer.ManualSwitchLayer,
-			}
-			t.NewSender(op)
 		}
-		offer := generateSdp("offer", t)
-		offer["clientId"] = cid
+
+		offer := generateSdp("offer", client.subscribeConnection)
 		r, _ := json.Marshal(offer)
 		response.Data = r
 	}
@@ -245,13 +240,13 @@ func (client *Client) handleMessage(room *Room, msg Message) {
 			BweType: bwe.Remb,
 		})
 		if err != nil {
-			logger.Error("create connection fail:", err, client.id)
+			logger.Error("create publishConnection fail:", err, client.id)
 			return
 		}
 		t.OnStateChange(func(state int) {
 			if state == 1 {
 				close(client.published)
-				client.connection = t
+				client.publishConnection = t
 				room.broadcast <- Message{
 					ClientID: client.id,
 					Type:     publish,
@@ -275,6 +270,22 @@ func (client *Client) handleMessage(room *Room, msg Message) {
 		}
 		data, _ := json.Marshal(message)
 		client.send <- data
+	case subscribe:
+		if client.subscribeConnection == nil {
+			t, err := broker.NewWebRTCConnection(&peer.WebRTCOption{
+				ID: room.id + "-" + client.id + "-sub",
+				DtlsOption: dtls.Option{
+					Role: dtls.Active,
+				},
+				BweType: bwe.Remb,
+			})
+			if err != nil {
+				logger.Error("create subscribeConnection fail:", err, client.id)
+				return
+			}
+			client.subscribeConnection = t
+		}
+		room.broadcast <- msg
 	default:
 		room.broadcast <- msg
 	}
